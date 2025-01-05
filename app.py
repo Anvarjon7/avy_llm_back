@@ -10,21 +10,23 @@ load_dotenv()
 
 app = Flask(__name__)
 db_handler = MongoHandler(uri=os.getenv("MONGO_URI"), db_name=os.getenv("DB_NAME"))
+video_extensions = [".mp4", ".mkv", ".avi", ".mov", ".flv"]
 
 # Handles files (PDF or video), initiates text extraction, and stores chunks in the database.
 def process_incoming_message(message):
     try:
-        data = validate_message(message)
+        json_message = json.dumps(message)
+        data = validate_message(json_message)
         if not data:
             print("Invalid message format")
             return
-        
-        file_path = data("filePath")
-        lesson_id = data("lessonId")
 
-        if file_path.endsWith(".pdf"):
+        file_path = data["filePath"]
+        lesson_id = data["lessonId"]
+
+        if file_path.endswith(".pdf"):
             text = file_processor.process_pdf(file_path)
-        elif file_path.endsWith(".mp4"):
+        elif any(file_path.lower().endswith(ext) for ext in video_extensions):
             text = file_processor.process_video(file_path)   
         else:
             print("Unsupported file type")    
@@ -73,4 +75,4 @@ def ask_question():
         return jsonify({"error": "Failed to generate answer"}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5001)

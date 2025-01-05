@@ -1,7 +1,10 @@
+import ssl
 import nltk
 from nltk.tokenize import sent_tokenize
 
-nltk.download('punkt')
+# Disable SSL certificate verification
+ssl._create_default_https_context = ssl._create_unverified_context
+nltk.download('punkt_tab')
 
 # Splits text into smaller chunks (up to 500 tokens) for efficient processing by the LLM.
 # Uses sentence tokenization via nltk.
