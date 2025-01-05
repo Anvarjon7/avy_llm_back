@@ -6,10 +6,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 openai.api_key = Config.OPENAI_API_KEY
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def get_summary_from_llm(context):
+    messages = [
+        {"role": "system","content": "You are a helpful assistant and must provide a brief but informative summary of the context"},
+        {"role": "user", "content": f"Context: {context}"}
+    ]
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=messages,
+        max_tokens=150
+    )
+    return response.choices[0].message["content"].strip()
 
 # Sends the context (combined chunks) and the user's question to OpenAI GPT-3.5-turbo and retrieves the response.
 def get_response_from_llm(context, question):
-    openai.api_key = os.getenv("OPENAI_API_KEY")
 
     messages = [
         {"role": "system",

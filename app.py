@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from services import mq_listener, file_processor, chunk_manager, llm_api
+from services import mq_listener, file_processor, chunk_manager, llm_api, mq_producer
 from database.mongo_handler import MongoHandler
 from utils.validation import validate_message
 import json
@@ -34,7 +34,8 @@ def process_incoming_message(message):
     
         if not text:
             print("File processing failed")
-    
+        summary = llm_api.get_summary_from_llm(text)
+        mq_producer.send_to_the_queue(summary,lesson_id)
         chunks = chunk_manager.split_text_into_chunks(text)
         db_handler.insert_lesson_chunks(lesson_id, chunks)
         print(f"Chunks stored for lesson {lesson_id}")
