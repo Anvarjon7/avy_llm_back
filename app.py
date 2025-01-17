@@ -26,8 +26,9 @@ def process_incoming_message(message):
 
         if file_path.endswith(".pdf"):
             text = file_processor.process_pdf(file_path)
+            print("text: " + text)
         elif any(file_path.lower().endswith(ext) for ext in video_extensions):
-            text = file_processor.process_video(file_path)   
+            text = file_processor.process_video(file_path)
         else:
             print("Unsupported file type")    
             return
@@ -35,6 +36,7 @@ def process_incoming_message(message):
         if not text:
             print("File processing failed")
         summary = llm_api.get_summary_from_llm(text)
+        print(len(summary))
         mq_producer.send_to_the_queue(summary,lesson_id)
         chunks = chunk_manager.split_text_into_chunks(text)
         db_handler.insert_lesson_chunks(lesson_id, chunks)
@@ -56,7 +58,7 @@ def ask_question():
     data = request.get_json()
     lesson_id = data.get("lesson_id")
     question = data.get("question")
-
+    print("received question from lms")
     if not lesson_id or not question:
         return jsonify({"error": "lesson_id and question are required"}), 400
     
@@ -69,7 +71,9 @@ def ask_question():
         context = " ".join(context.split()[:2000])
 
     try:
+        print("about to ask question")
         answer = llm_api.get_response_from_llm(context,question)
+        print("answer: " + answer)
         return jsonify({"answer":answer})
     except Exception as e:
         print(f"Error generating LLM response: {e}")

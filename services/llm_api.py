@@ -10,7 +10,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def get_summary_from_llm(context):
     messages = [
-        {"role": "system","content": "You are a helpful assistant and must provide a brief but informative summary of the context"},
+        {"role": "system","content": "You are a helpful assistant and must provide a brief but informative summary of the context(your answer must be strictly up to 500 characters!)"},
         {"role": "user", "content": f"Context: {context}"}
     ]
     response = openai.ChatCompletion.create(
@@ -18,6 +18,7 @@ def get_summary_from_llm(context):
         messages=messages,
         max_tokens=150
     )
+    print("result: " + response.choices[0].message["content"].strip())
     return response.choices[0].message["content"].strip()
 
 # Sends the context (combined chunks) and the user's question to OpenAI GPT-3.5-turbo and retrieves the response.

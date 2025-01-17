@@ -6,3 +6,4 @@ openai # Access OpenAI GPT APIs.
 langchain-community # Tools for LLM-based applications.
 whisper # Speech-to-text transcription.
 python-dotenv  # Manage environment variables securely.
+pypdf #pdf
