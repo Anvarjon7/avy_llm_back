@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from services import mq_listener, file_processor, chunk_manager, llm_api, mq_producer
+from services import mq_listener, file_processor, chunk_manager, llm_api, mq_producer,live_speech_recogniser
 from database.mongo_handler import MongoHandler
 from utils.validation import validate_message
 import json
@@ -26,7 +26,7 @@ def process_incoming_message(message):
 
         if file_path.endswith(".pdf"):
             text = file_processor.process_pdf(file_path)
-            print("text: " + text)
+            # print("text: " + text)
         elif any(file_path.lower().endswith(ext) for ext in video_extensions):
             text = file_processor.process_video(file_path)
         else:
@@ -58,26 +58,48 @@ def ask_question():
     data = request.get_json()
     lesson_id = data.get("lesson_id")
     question = data.get("question")
+    user_id = data.get("user_id")
     print("received question from lms")
     if not lesson_id or not question:
         return jsonify({"error": "lesson_id and question are required"}), 400
-    
-    chunks = db_handler.get_lesson_chunks(lesson_id)
-    if not chunks:
-        return jsonify({"error": "Lesson not found"}), 404
-    
-    context = " ".join(chunks)
-    if len(context.split()) > 2000: #Limit context to approx. 2000 tokens
-        context = " ".join(context.split()[:2000])
-
+    context = get_context(lesson_id)
     try:
         print("about to ask question")
-        answer = llm_api.get_response_from_llm(context,question)
+        user = db_handler.get_user_data_for_chatbot(user_id,lesson_id,context)
+        answer = llm_api.get_response_from_llm(user,question)
         print("answer: " + answer)
         return jsonify({"answer":answer})
     except Exception as e:
         print(f"Error generating LLM response: {e}")
         return jsonify({"error": "Failed to generate answer"}), 500
+
+@app.route("/ask-verbal-question",methods=['POST'])
+def ask_verbal_question():
+    data = request.get_json()
+    user_id = data.get("user_id")
+    lesson_id = data.get("lesson_id")
+    question = live_speech_recogniser.listen_to_user()
+    print("received verbal question from lms")
+    context = get_context(lesson_id)
+    try:
+        print("about to ask question")
+        user = db_handler.get_user_data_for_chatbot(user_id,lesson_id,context)
+        answer = llm_api.get_response_from_llm(user,question)
+        print("answer: " + answer)
+        return jsonify({"answer":answer})
+    except Exception as e:
+        print(f"Error generating LLM response: {e}")
+        return jsonify({"error": "Failed to generate answer"}), 500
+
+def get_context(lesson_id):
+    chunks = db_handler.get_lesson_chunks(lesson_id)
+    if not chunks:
+        return jsonify({"error": "Lesson not found"}), 404
+
+    context = " ".join(chunks)
+    if len(context.split()) > 2000:  # Limit context to approx. 2000 tokens
+        context = " ".join(context.split()[:2000])
+    return context
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
