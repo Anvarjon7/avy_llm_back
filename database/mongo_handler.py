@@ -1,4 +1,6 @@
 from pymongo import MongoClient
+from sqlalchemy.orm.collections import collection
+
 
 class MongoHandler:
     def __init__(self, uri, db_name):
@@ -10,7 +12,11 @@ class MongoHandler:
     def insert_lesson_chunks(self, lesson_id, chunks):
         try:
             collection = self.db["lesson_chunks"]
-            document = {"lessonId": lesson_id, "chunks": chunks}
+            result = collection.find_one({"lesson_id": lesson_id})
+            if result:
+              self.delete_user_data_for_chatbot(lesson_id)
+              self.delete_lesson_chunks(lesson_id)
+            document = {"lesson_id": lesson_id, "chunks": chunks}
             collection.insert_one(document)
         except Exception as e:
             print(f"Error inserting lesson chunks: {e}")
@@ -19,7 +25,7 @@ class MongoHandler:
     def get_lesson_chunks(self, lesson_id):
         try:
             collection = self.db["lesson_chunks"]
-            result = collection.find_one({"lessonId": lesson_id})
+            result = collection.find_one({"lesson_id": lesson_id})
             if not result:
                 return None
             return result.get("chunks", [])
@@ -27,23 +33,34 @@ class MongoHandler:
             print(f"Error retrieving lesson chunks: {e}")
             return None
 
+    def delete_lesson_chunks(self,lesson_id):
+        try:
+            collection = self.db["lesson_chunks"]
+            collection.delete_many({"lesson_id":lesson_id})
+        except Exception as e:
+            print(f"Error deleting lesson chunks: {e}")
+            return None
+
     def insert_user_data(self,user_id,lesson_id,conversation_data):
         try:
             collection = self.db["user_data"]
             collection.update_one(
-                  {"user_id": user_id},
-                {"$set": {
-                    "lesson_id": lesson_id,
-                    "conversation_history": conversation_data}})
+                  {"user_id": user_id, "lesson_id": lesson_id},
+                {"$set": {"conversation_history": conversation_data}})
         except Exception as e:
           print(f"Error inserting user data: {e}")
 
     def get_user_data_for_chatbot(self,user_id,lesson_id,context):
         try:
             collection = self.db["user_data"]
+            print(lesson_id)
             user_document = collection.find_one({"user_id": user_id,"lesson_id":lesson_id})
+
             if user_document:
+                print(user_document.get("lesson_id"))
                 print(user_document.get("user_id"))
+                print(user_document.get("conversation_history"))
+                print("user document found")
                 return user_document
             else:
                 print("passing the context")
@@ -67,9 +84,18 @@ class MongoHandler:
                     ]
                 }
                 collection.insert_one(new_document)
-                user_document = collection.find_one({"user_id": user_id})
+                user_document = collection.find_one({"user_id": user_id,"lesson_id": lesson_id})
                 print(user_document.get("conversation_history"))
                 return user_document
         except Exception as e:
             print(f"Error retrieving user data: {e}")
+            return None
+
+    def delete_user_data_for_chatbot(self,lesson_id):
+        try:
+            collection = self.db["user_data"]
+            result = collection.delete_many({"lesson_id": lesson_id})
+            print(f"Deleted {result.deleted_count} documents for lesson_id {lesson_id}")
+        except Exception as e:
+            print(f"Error processing user data: {e}")
             return None

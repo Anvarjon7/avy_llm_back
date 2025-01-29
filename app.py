@@ -44,11 +44,29 @@ def process_incoming_message(message):
     except Exception as e:
         print(f"Error processing incoming message: {e}")
 
+def process_incoming_message_removal(message):
+  try:
+    json_message = json.dumps(message)
+    data = json.loads(json_message)
+    if not data:
+        print("Invalid message format")
+        return
+    lesson_id = data["lessonId"]
+    db_handler.delete_lesson_chunks(lesson_id)
+  except Exception as e:
+      print(f"Error processing incoming message: {e}")
+
+
 
 mq_conn = mq_listener.start_listener(
     ACTIVE_MQ_URL=os.getenv("ACTIVE_MQ_URL"), 
     queue=os.getenv("LESSON_QUEUE"),
     process_callback=process_incoming_message
+    )
+mq_conn_2 = mq_listener.start_listener(
+    ACTIVE_MQ_URL=os.getenv("ACTIVE_MQ_URL"),
+    queue=os.getenv("DELETE_LESSON_CHUNKS_QUEUE"),
+    process_callback=process_incoming_message_removal
     )
 
 # Receives a question from the user, retrieves the corresponding context from the database, 
