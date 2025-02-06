@@ -9,5 +9,11 @@ openai==0.28 # Access OpenAI GPT APIs.
 langchain-community # Tools for LLM-based applications.
 whisper # Speech-to-text transcription.
 python-dotenv  # Manage environment variables securely.
-pypdf #pdf
+pypdf # Pdf
+numpy # Numerical computations
+scipy # Computes cosine(voice) similarity
+torchaudio # Handles audio processing
+speechbrain # Provides the EncoderClassifier for voice embeddings
+sounddevice # Used for audio recording/playback
+wave # Writes WAV audio files
 
