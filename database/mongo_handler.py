@@ -99,3 +99,22 @@ class MongoHandler:
         except Exception as e:
             print(f"Error processing user data: {e}")
             return None
+
+    def insert_user_voice_embedding(self,user_id,embedding):
+        try:
+            collection = self.db["voice_embedding"]
+            new_document = {"user_id":user_id,"embedding":embedding.tolist()}
+            collection.insert_one(new_document)
+        except Exception as e:
+            print(f"Error storing user voice data: {e}")
+            return None
+
+    def find_all_voice_embeddings(self):
+        try:
+            collection = self.db["voice_embedding"]
+            return collection.find()
+        except Exception as e:
+            print(f"Error retrieving voice embeddings: {e}")
+            return None
+
+

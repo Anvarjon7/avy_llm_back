@@ -1,6 +1,10 @@
+import uuid
 from flask import Flask, request, jsonify
 from services import mq_listener, file_processor, chunk_manager, llm_api, mq_producer,live_speech_recogniser
 from database.mongo_handler import MongoHandler
+from services.voice_recoginiton.recognise_user import recognize_user
+from services.voice_recoginiton.extract_embeddings import store_embedding
+from services.voice_recoginiton.record_voice import record_voice
 from utils.validation import validate_message
 import json
 import os
@@ -69,6 +73,15 @@ mq_conn_2 = mq_listener.start_listener(
     process_callback=process_incoming_message_removal
     )
 
+def get_context(lesson_id):
+    chunks = db_handler.get_lesson_chunks(lesson_id)
+    if not chunks:
+        return jsonify({"error": "Lesson not found"}), 404
+
+    context = " ".join(chunks)
+    if len(context.split()) > 2000:  # Limit context to approx. 2000 tokens
+        context = " ".join(context.split()[:2000])
+    return context
 # Receives a question from the user, retrieves the corresponding context from the database, 
 # queries the LLM for an answer, and returns the response.
 @app.route("/ask-question", methods=['POST'])
@@ -109,15 +122,28 @@ def ask_verbal_question():
         print(f"Error generating LLM response: {e}")
         return jsonify({"error": "Failed to generate answer"}), 500
 
-def get_context(lesson_id):
-    chunks = db_handler.get_lesson_chunks(lesson_id)
-    if not chunks:
-        return jsonify({"error": "Lesson not found"}), 404
+@app.route("/register-voice-pass",methods=['POST'])
+def register_voice():
+    data = request.get_json()
+    user_id = data.get("user_id")
+    filename = "user{}.wav".format(user_id)
+    record_voice(filename)
+    store_embedding(user_id,filename)
+    return "created"
 
-    context = " ".join(chunks)
-    if len(context.split()) > 2000:  # Limit context to approx. 2000 tokens
-        context = " ".join(context.split()[:2000])
-    return context
+@app.route("/voice-pass-login",methods=['POST'])
+def recognise_user_by_voice():
+   try:
+    login_audio_file = str(uuid.uuid4()) + ".wav"
+    record_voice(login_audio_file,5)
+    result = recognize_user(login_audio_file)
+    print(result)
+    os.remove(login_audio_file)
+    return jsonify({"user_id":result})
+   except Exception as e:
+       print(f"Error processing voice: {e}")
+       return jsonify({"error": e}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
