@@ -1,8 +1,11 @@
 import uuid
+from crypt import methods
+
 from flask import Flask, request, jsonify
 from services import mq_listener, file_processor, chunk_manager, llm_api, mq_producer,live_speech_recogniser
 from database.mongo_handler import MongoHandler
-from services.voice_recoginiton.recognise_user import recognize_user
+from services.llm_api import get_navigation_request
+from services.voice_recoginiton.recognise_user import recognize_user, recognise_concrete_user
 from services.voice_recoginiton.extract_embeddings import store_embedding
 from services.voice_recoginiton.record_voice import record_voice
 from utils.validation import validate_message
@@ -108,15 +111,26 @@ def ask_question():
 def ask_verbal_question():
     data = request.get_json()
     user_id = data.get("user_id")
+    print(user_id)
     lesson_id = data.get("lesson_id")
-    question = live_speech_recogniser.listen_to_user()
     print("received verbal question from lms")
+    audio_file = str(uuid.uuid4()) + ".wav"
+    record_voice(audio_file)
+    question = live_speech_recogniser.extract_text_from_audio(audio_file)
+    if not db_handler.get_user_recognised(user_id,lesson_id):
+        result = recognise_concrete_user(audio_file,user_id)
+        if not result:
+            os.remove(audio_file)
+            return jsonify({"answer": "Unfortunately your voice wasn't recognised"})
+        else:
+            db_handler.insert_user_recognised(user_id,lesson_id,True)
     context = get_context(lesson_id)
     try:
         print("about to ask question")
         user = db_handler.get_user_data_for_chatbot(user_id,lesson_id,context)
         answer = llm_api.get_response_from_llm(user,question)
         print("answer: " + answer)
+        os.remove(audio_file)
         return jsonify({"answer":answer})
     except Exception as e:
         print(f"Error generating LLM response: {e}")
@@ -144,6 +158,16 @@ def recognise_user_by_voice():
        print(f"Error processing voice: {e}")
        return jsonify({"error": e}), 500
 
+@app.route("/request-navigation",methods=['POST'])
+def get_voice_input():
+    temp_file = str(uuid.uuid4()) + ".wav"
+    record_voice(temp_file,5)
+    navigation_request = live_speech_recogniser.extract_text_from_audio(temp_file)
+    answer = get_navigation_request(navigation_request)
+    return jsonify({"answer":answer})
+
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
+    db_handler.default()

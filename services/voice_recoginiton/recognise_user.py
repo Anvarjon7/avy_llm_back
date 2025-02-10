@@ -27,3 +27,14 @@ def recognize_user(new_sample):
     else:
         print("❌ User not recognized!")
         return None
+
+def recognise_concrete_user(new_sample,user_id):
+    new_embedding = extract_embedding(new_sample)
+    existing_embedding = db_handler.get_embedding_by_user_id(user_id)
+    distance = cosine(new_embedding, np.array(existing_embedding))
+    print("distance:")
+    print(distance)
+    if distance < 0.6:
+        return True
+    else:
+        return False

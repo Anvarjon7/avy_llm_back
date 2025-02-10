@@ -55,3 +55,17 @@ def get_response_from_llm(user,user_input):
     return response
  except Exception as e:
       print(f"Error querying LLM: {e}")
+
+def get_navigation_request(request):
+    messages = [
+        {"role": "system", "content":
+            "Based on the request you must semantically answer with one of these words: Dashboard, Profile, Market, Simulate, Log Out or if none of these words suits answer just None"},
+        {"role": "user", "content": request}
+    ]
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=messages,
+        max_tokens=150
+    ).choices[0].message["content"].strip()
+    print(response)
+    return response
