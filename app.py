@@ -163,6 +163,7 @@ def get_voice_input():
     temp_file = str(uuid.uuid4()) + ".wav"
     record_voice(temp_file,5)
     navigation_request = live_speech_recogniser.extract_text_from_audio(temp_file)
+    os.remove(temp_file)
     answer = get_navigation_request(navigation_request)
     return jsonify({"answer":answer})
 
